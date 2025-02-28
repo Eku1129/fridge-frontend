@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>冷蔵庫管理アプリ</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; }
+        input, button { margin: 5px; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid black; padding: 10px; }
+        th { background-color: #f4f4f4; }
+    </style>
+</head>
+<body>
+
+    <h1>冷蔵庫の中身</h1>
+
+    <!-- 新しいアイテム追加フォーム -->
+    <input type="text" id="itemName" placeholder="アイテム名">
+    <input type="date" id="expiryDate">
+    <button onclick="addItem()">追加</button>
+
+    <!-- アイテム一覧表示 -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>アイテム名</th>
+                <th>賞味期限</th>
+                <th>削除</th>
+            </tr>
+        </thead>
+        <tbody id="itemsTable">
+            <!-- JavaScriptでデータを追加 -->
+        </tbody>
+    </table>
+
+    <script>
+        const API_URL = "https://fridge-app-jida.onrender.com/items"; // ここをRenderのURLに変更
+
+        // アイテム一覧を取得して表示
+        function fetchItems() {
+            fetch(API_URL)
+                .then(response => response.json())
+                .then(data => {
+                    const table = document.getElementById("itemsTable");
+                    table.innerHTML = ""; // クリア
+                    data.forEach(item => {
+                        const row = document.createElement("tr");
+
+                        // 賞味期限の色付け
+                        const expiryDate = new Date(item.expiry);
+                        const today = new Date();
+                        const diffDays = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24)); // 残り日数
+
+                        let color = "black";
+                        if (diffDays <= 3) {
+                            color = "red"; // 3日以内なら赤
+                        } else if (diffDays <= 7) {
+                            color = "orange"; // 7日以内ならオレンジ
+                        }
+
+                        row.innerHTML = `
+                            <td>${item.id}</td>
+                            <td>${item.name}</td>
+                            <td style="color: ${color}">${item.expiry} (${diffDays}日後)</td>
+                            <td><button onclick="deleteItem(${item.id})">削除</button></td>
+                        `;
+                        table.appendChild(row);
+                    });
+                })
+                .catch(error => console.error("Error fetching items:", error));
+        }
+
+        // 新しいアイテムを追加
+        function addItem() {
+            const name = document.getElementById("itemName").value;
+            const expiry = document.getElementById("expiryDate").value;
+            if (!name || !expiry) {
+                alert("アイテム名と賞味期限を入力してください");
+                return;
+            }
+
+            fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, expiry })
+            })
+            .then(response => response.json())
+            .then(() => {
+                document.getElementById("itemName").value = "";
+                document.getElementById("expiryDate").value = "";
+                fetchItems(); // 更新
+            })
+            .catch(error => console.error("Error adding item:", error));
+        }
+
+        // アイテムを削除
+        function deleteItem(id) {
+            fetch(`${API_URL}/${id}`, { method: "DELETE" })
+                .then(response => response.json())
+                .then(() => fetchItems()) // 更新
+                .catch(error => console.error("Error deleting item:", error));
+        }
+
+        // 初回データ取得
+        fetchItems();
+    </script>
+
+</body>
+</html>
